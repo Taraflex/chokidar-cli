@@ -29,7 +29,8 @@ const defaultOpts = {
     verbose: false,
     silent: false,
     initial: false,
-    command: null
+    command: null,
+    runOnStart: false
 };
 
 const VERSION = `chokidar-cli: ${version}\nchokidar: ${chokidarVersion}`;
@@ -53,6 +54,11 @@ const {argv} = yargs
                   'spaces. Instances of `{path}` or `{event}` within the ' +
                   'command will be replaced by the corresponding values from ' +
                   'the chokidar event.'
+    })
+    .option('run-on-start', {
+        default: defaultOpts.runOnStart,
+        describe: 'Additional run command on start before any change',
+        type: 'boolean'
     })
     .option('d', {
         alias: 'debounce',
@@ -150,6 +156,18 @@ function startWatching(opts) {
         debouncedRun = debounce(throttledRun, opts.debounce);
     }
 
+    function cmd(event, path){
+        debouncedRun(
+            opts.command
+                .replace(/\{path\}/ig, path)
+                .replace(/\{event\}/ig, event)
+        );
+    }
+
+    if (opts.runOnStart && opts.command) {
+        cmd('start', '')
+    }
+
     watcher.on('all', (event, path) => {
         const description = `${EVENT_DESCRIPTIONS[event]}:`;
 
@@ -161,11 +179,7 @@ function startWatching(opts) {
 
         // XXX: commands might be still run concurrently
         if (opts.command) {
-            debouncedRun(
-                opts.command
-                    .replace(/\{path\}/ig, path)
-                    .replace(/\{event\}/ig, event)
-            );
+            cmd(event, path);
         }
     });
 
