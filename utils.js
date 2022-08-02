@@ -1,6 +1,6 @@
 'use strict';
 
-const {spawn} = require('child_process');
+const { spawn } = require('child_process');
 
 // Try to resolve path to shell.
 // We assume that Windows provides COMSPEC env variable
@@ -10,6 +10,9 @@ const EXECUTE_OPTION = process.env.COMSPEC !== undefined && process.env.SHELL ==
 
 // XXX: Wrapping tos to a promise is a bit wrong abstraction. Maybe RX suits
 // better?
+
+let child;
+
 function run(cmd, opts) {
     if (!SHELL_PATH) {
         // If we cannot resolve shell, better to just crash
@@ -25,15 +28,18 @@ function run(cmd, opts) {
             // process reference
             // Called immediately after successful child process
             // spawn
-        }, ...opts};
+        }, ...opts
+    };
 
     return new Promise((resolve, reject) => {
-        let child;
 
         try {
+            if (opts.killSignal && child && !child.killed) {
+                child.kill(opts.killSignal)
+            }
             child = spawn(SHELL_PATH, [EXECUTE_OPTION, cmd], {
                 cwd: opts.cwd,
-                stdio: opts.pipe ? 'inherit' : null
+                stdio: opts.pipe ? 'inherit' : undefined
             });
         } catch (error) {
             return reject(error);

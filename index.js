@@ -30,7 +30,8 @@ const defaultOpts = {
     silent: false,
     initial: false,
     command: null,
-    runOnStart: false
+    runOnStart: false,
+    killPrevSignal: null
 };
 
 const VERSION = `chokidar-cli: ${version}\nchokidar: ${chokidarVersion}`;
@@ -59,6 +60,11 @@ const {argv} = yargs
         default: defaultOpts.runOnStart,
         describe: 'Additional run command on start before any change',
         type: 'boolean'
+    })
+    .option('kill-prev-signal', {
+        default: defaultOpts.runOnStart,
+        describe: 'Terminate previous started command with signal before run new',
+        type: 'string'
     })
     .option('d', {
         alias: 'debounce',
@@ -148,19 +154,20 @@ function startWatching(opts) {
 
     let throttledRun = run;
     if (opts.throttle > 0) {
-        throttledRun = throttle(run, opts.throttle);
+        throttledRun = throttle(run, opts.throttle); 
     }
 
     let debouncedRun = throttledRun;
     if (opts.debounce > 0) {
-        debouncedRun = debounce(throttledRun, opts.debounce);
+        debouncedRun = debounce(throttledRun, opts.debounce); 
     }
 
     function cmd(event, path){
         debouncedRun(
             opts.command
                 .replace(/\{path\}/ig, path)
-                .replace(/\{event\}/ig, event)
+                .replace(/\{event\}/ig, event),
+            opts.killPrevSignal
         );
     }
 
@@ -235,8 +242,8 @@ function _resolveIgnoreOpt(ignoreOpt) {
     });
 }
 
-function run(cmd) {
-    return utils.run(cmd)
+function run(cmd, killSignal) {
+    return utils.run(cmd, { killSignal })
         .catch(error => {
             console.error('Error when executing', cmd);
             console.error(error.stack);
